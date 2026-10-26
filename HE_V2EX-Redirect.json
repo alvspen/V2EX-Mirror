@@ -1,0 +1,21 @@
+{
+	"request": [
+		{
+			"enable": true,
+			"group": "V2EX",
+			"ruleType": "redirect",
+			"isFunction": false,
+			"code": "",
+			"forceRunner": "auto",
+			"name": "V2EX-Redirect",
+			"condition": {
+				"regex": "^(https?://(?:www\\.)?v2ex\\.com/(.*))"
+			},
+			"to": "https://global.v2ex.co/$2",
+			"encoding": "utf-8"
+		}
+	],
+	"sendHeader": [],
+	"receiveHeader": [],
+	"receiveBody": []
+}

@@ -17,7 +17,7 @@
 ## 安装
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/) 或 [ScriptCat](https://scriptcat.org/)。
-2. 打开 [`v2ex-mirror.user.js`](./v2ex-mirror.user.js)（或点击 `Raw`），扩展会识别元数据并弹出安装提示。
+2. 打开 [`v2ex-mirror.user.js`](./v2ex-mirror.user.js)（点击 `Raw`，或点击仓库 About 下方的 Website 链接），扩展会识别元数据并弹出安装提示。
 3. 脚本已配置 `@updateURL`，后续版本会自动提示升级。
 
 ## 配合重定向
@@ -27,31 +27,7 @@
 - Chrome / Edge：[Header Editor Lite](https://chrome.google.com/webstore/detail/header-editor/eningockdidmgiojffjmkdblpjocbhgh)
 - Firefox：[Header Editor Lite](https://addons.mozilla.org/zh-CN/firefox/addon/header-editor-lite/)
 
-导入以下规则即可：
-
-```json
-{
-  "request": [
-    {
-      "enable": true,
-      "group": "V2EX",
-      "ruleType": "redirect",
-      "isFunction": false,
-      "code": "",
-      "forceRunner": "auto",
-      "name": "V2EX-Redirect",
-      "condition": {
-        "regex": "^(https?://(?:www\\.)?v2ex\\.com/(.*))"
-      },
-      "to": "https://global.v2ex.co/$2",
-      "encoding": "utf-8"
-    }
-  ],
-  "sendHeader": [],
-  "receiveHeader": [],
-  "receiveBody": []
-}
-```
+在 Header Editor 设置中导入仓库中的 [`HE_V2EX-Redirect.json`](./HE_V2EX-Redirect.json) 规则文件。
 
 ## 关于 v2ex.co
 

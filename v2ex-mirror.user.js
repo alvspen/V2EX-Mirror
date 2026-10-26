@@ -1,15 +1,14 @@
 // ==UserScript==
 // @name         V2EX 镜像加速与图片修复
-// @namespace    https://github.com/
-// @version      1.4.2
-// @description  替换页面内域名链接，修复 Imgur / Reddit 图片防盗链及 Gravatar 头像加载，加速帖子与节点背景图。
+// @namespace    https://github.com/alvspen/V2EX-Mirror
+// @version      1.5.0
+// @description  替换页面内域名链接，修复 Imgur / Reddit 图片防盗链及 Gravatar 头像加载，加速帖子图片与节点背景图。
 // @author       alvspen
-// @match        *://*.v2ex.com/*
+// @license      MIT
 // @match        *://*.v2ex.co/*
 // @match        *://*.sov2ex.com/*
 // @run-at       document-start
 // @grant        none
-// @homepage     https://github.com/alvspen/V2EX-Mirror
 // @homepageURL  https://github.com/alvspen/V2EX-Mirror
 // @supportURL   https://github.com/alvspen/V2EX-Mirror/issues
 // @updateURL    https://raw.githubusercontent.com/alvspen/V2EX-Mirror/main/v2ex-mirror.user.js
@@ -27,8 +26,9 @@
     const domainRegexWww = /(?<![a-zA-Z0-9_.@-])www\.v2ex\.com/g;
     const domainRegex = /(?<![a-zA-Z0-9_.@-])v2ex\.com/g;
     const cdnRegex = /cdn\.v2ex\.com/g;
-    // 帖子页 /bgs/ 与节点页 /grids/ 背景图，兼容 https://、http:// 与协议相对 // 写法
-    const bgRegex = /(?:https?:)?\/\/static\.v2ex\.com\/(bgs|grids)\//g;
+    // static.v2ex.com 节点背景图按主机名整体镜像（路径不定），限定图片扩展名，
+    // 兼容 https://、http:// 与协议相对 // 写法
+    const staticAssetRegex = /(?:https?:)?\/\/static\.v2ex\.com\/([^\s"'()]*\.(?:png|jpe?g|gif|webp|bmp|svg|ico|avif)(?:\?[^\s"'()]*)?)/gi;
 
     // 节点处理核心函数
     const processNode = (node) => {
@@ -57,7 +57,7 @@
         if (node.style && node.style.backgroundImage) {
           const bgImage = node.style.backgroundImage;
           const newBgImage = bgImage
-            .replace(bgRegex, "https://i3.wp.com/static.v2ex.com/$1/")
+            .replace(staticAssetRegex, "https://i3.wp.com/static.v2ex.com/$1")
             .replace(cdnRegex, "cdn.v2ex.co");
           if (newBgImage !== bgImage) {
             node.style.backgroundImage = newBgImage;
@@ -68,7 +68,7 @@
         if (node.tagName.toLowerCase() === "style") {
           const cssText = node.textContent;
           const newCssText = cssText
-            .replace(bgRegex, "https://i3.wp.com/static.v2ex.com/$1/")
+            .replace(staticAssetRegex, "https://i3.wp.com/static.v2ex.com/$1")
             .replace(cdnRegex, "cdn.v2ex.co");
           // 必须比较新旧文本：替换后的 url 仍含原子串，若用 includes 判断，
           // 相同值的赋值仍触发 characterData 变更，会与监听器形成无限回环。
@@ -80,12 +80,9 @@
         // 处理图片及媒体资源 (img, source)
         const tagName = node.tagName.toLowerCase();
         if (tagName === "img" || tagName === "source") {
-          let srcModified = false;
-
           // 替换 Gravatar 头像及 CDN 资源域名
           if (node.src && node.src.includes("cdn.v2ex.com")) {
             node.src = node.src.replace(cdnRegex, "cdn.v2ex.co");
-            srcModified = true;
           }
 
           // 锚定主机名而非用 includes 判断：镜像后的 URL 参数中仍含 i.imgur.com
@@ -94,14 +91,23 @@
             node.src =
               "https://down.nigx.cn/search.pstatic.net/common?src=" +
               encodeURIComponent(node.src);
-            srcModified = true;
           }
 
           // 同上：i3.wp.com/i.redd.it/... 仍含 i.redd.it 子串，必须锚定主机名保证幂等
           if (node.src && /^https?:\/\/i\.redd\.it\//.test(node.src)) {
             node.src =
               "https://i3.wp.com/" + node.src.replace(/^https?:\/\//, "");
-            srcModified = true;
+          }
+
+          // 帖子正文内的 static.v2ex.com 图片（如 logos/github.png）走 WordPress CDN 镜像
+          if (
+            node.src &&
+            /^https?:\/\/static\.v2ex\.com\/[^\s]*\.(?:png|jpe?g|gif|webp|bmp|svg|ico|avif)(?:\?|$)/i.test(
+              node.src,
+            )
+          ) {
+            node.src =
+              "https://i3.wp.com/" + node.src.replace(/^https?:\/\//, "");
           }
 
           // 处理响应式图片的 srcset 属性
@@ -109,7 +115,6 @@
             let newSrcset = node.srcset;
             if (newSrcset.includes("cdn.v2ex.com")) {
               newSrcset = newSrcset.replace(cdnRegex, "cdn.v2ex.co");
-              srcModified = true;
             }
             if (newSrcset.includes("i.imgur.com")) {
               newSrcset = newSrcset.replace(
@@ -121,16 +126,21 @@
                   );
                 },
               );
-              srcModified = true;
             }
             if (newSrcset.includes("i.redd.it")) {
               newSrcset = newSrcset.replace(
                 /https?:\/\/i\.redd\.it\/([^\s,]+)/g,
                 "https://i3.wp.com/i.redd.it/$1",
               );
-              srcModified = true;
             }
-            if (srcModified) {
+            if (newSrcset.includes("static.v2ex.com")) {
+              newSrcset = newSrcset.replace(
+                /https?:\/\/static\.v2ex\.com\/([^\s,]*\.(?:png|jpe?g|gif|webp|bmp|svg|ico|avif)(?:\?[^\s,]*)?)/gi,
+                "https://i3.wp.com/static.v2ex.com/$1",
+              );
+            }
+            // 比较新旧值再回写：includes 预检无法识别已代理的 URL，避免空写
+            if (newSrcset !== node.srcset) {
               node.srcset = newSrcset;
             }
           }
@@ -171,9 +181,6 @@
       // 根节点，<html> 插入后即覆盖其后续全部子树变化
       const root = document.documentElement;
       if (root) {
-        // TreeWalker 不返回根节点，需单独处理
-        processNode(root);
-
         // 遍历当前已有的所有 DOM 节点
         const walker = document.createTreeWalker(
           root,
